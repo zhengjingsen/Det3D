@@ -783,7 +783,7 @@ def create_anchors_3d_range(
     else:
         combines = sizes
 
-    rets = np.meshgrid(x_centers, y_centers, z_centers, rotations, indexing="ij")
+    rets = np.meshgrid(x_centers, y_centers, z_centers, rotations, indexing="ij") # list: 4, each size: x * y * z * rot
 
     tile_shape = [1] * 5
     tile_shape[-2] = int(sizes.shape[0])

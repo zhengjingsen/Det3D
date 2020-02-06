@@ -35,6 +35,9 @@ class Object3d(object):
         # location (x,y,z) in camera coord.
         self.t = (data[11], data[12], data[13])
         self.ry = data[14]  # yaw angle (around Y-axis in camera coordinates) [-pi..pi]
+        self.score = 1
+        if len(data) == 16:
+            self.score = data[-1]
 
     def print_object(self):
         print(
@@ -263,8 +266,8 @@ class kitti_object(object):
         self.root_dir = root_dir
         self.split = split
 
-        self.lidar_dir = os.path.join(self.root_dir, self.split, "velodyne")
-        self.label_dir = os.path.join(self.root_dir, self.split, "label_2")
+        self.lidar_dir = os.path.join(self.root_dir, self.split, "velodyne_reduced")
+        self.label_dir = os.path.join(self.root_dir, self.split, "predictions")
         self.calib_dir = os.path.join(self.root_dir, self.split, "calib")
 
     def get_lidar(self, idx):
@@ -277,7 +280,10 @@ class kitti_object(object):
 
     def get_label_objects(self, idx):
         label_filename = os.path.join(self.label_dir, "%06d.txt" % (idx))
-        return read_label(label_filename)
+        if os.path.exists(label_filename):
+            return read_label(label_filename)
+        else:
+            return None
 
 
 # -----------------------------------------------------------------------------------------
@@ -475,7 +481,12 @@ if __name__ == "__main__":
         print(lidar_data.shape)
         # OBJECTS
         objects = dataset.get_label_objects(data_idx)
-        objects[0].print_object()
+        if objects is None:
+            continue
+
+        print("data_idx: {}".format(data_idx))
+
+        objects = [obj for obj in objects if obj.score > 0.5]
         # CALIB
         calib = dataset.get_calibration(data_idx)
         print(calib.P)
