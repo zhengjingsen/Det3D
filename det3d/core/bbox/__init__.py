@@ -40,6 +40,7 @@
 # from .box_coders import (GroundBox3dCoder, BevBoxCoder, GroundBox3dCoderTorch,
 #                          BevBoxCoderTorch)
 from . import box_coders, box_np_ops, box_torch_ops, geometry, region_similarity
+from .transforms import *
 
 # from .region_similarity import (RegionSimilarityCalculator,
 #                                 RotateIouSimilarity, NearestIouSimilarity,

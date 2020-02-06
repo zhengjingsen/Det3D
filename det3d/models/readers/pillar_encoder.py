@@ -170,6 +170,10 @@ class PointPillarsScatter(nn.Module):
         super().__init__()
         self.name = "PointPillarsScatter"
         self.nchannels = num_input_features
+        self.backbone = None
+        self.conv_cfg = kwargs.get("conv_cfg", None)
+        if self.conv_cfg is not None:
+            self.backbone = builder.build_backbone(self.conv_cfg)
 
     def forward(self, voxel_features, coords, batch_size, input_shape):
 
@@ -206,4 +210,7 @@ class PointPillarsScatter(nn.Module):
 
         # Undo the column stacking to final 4-dim tensor
         batch_canvas = batch_canvas.view(batch_size, self.nchannels, self.ny, self.nx)
+
+        if self.backbone is not None:
+            batch_canvas = self.backbone(batch_canvas)
         return batch_canvas
