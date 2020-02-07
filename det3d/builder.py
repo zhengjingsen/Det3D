@@ -2,7 +2,7 @@ import logging
 import pickle
 from functools import partial
 
-import det3d.core.sampler.preprocess as prep
+#import det3d.core.sampler.preprocess as prep
 import numpy as np
 import torch
 from det3d.core.anchor.anchor_generator import (

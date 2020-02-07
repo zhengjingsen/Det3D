@@ -22,3 +22,6 @@ fi
 
 # PointPillars
 python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/point_pillars/configs/kitti_point_pillars_mghead_syncbn.py
+
+#FCOS
+#python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/fcos/kitti_fcos_mghead_syncbn.py

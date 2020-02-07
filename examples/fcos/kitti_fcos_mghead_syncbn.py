@@ -32,7 +32,7 @@ test_cfg = dict(
 
 # dataset settings
 dataset_type = "KittiDataset"
-data_root = "/data/Datasets/KITTI/Kitti/object"
+data_root = "/media/jingsen/zhengjs/Datasets/kitti_object"
 
 db_sampler = dict(
     type="GT-AUG",
@@ -228,7 +228,7 @@ total_epochs = 100
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
-work_dir = "/data/Outputs/det3d_Outputs/FCOS"
+work_dir = "/media/jingsen/data/det3d_output/debug"
 load_from = None
 resume_from = None
 workflow = [("train", 5), ("val", 1)]

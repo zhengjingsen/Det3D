@@ -199,6 +199,20 @@ if __name__ == "__main__":
                 extra_compile_args={"cxx": ["-g"], "nvcc": ["-O2"]},
             ),
             make_cuda_ext(
+                name='deform_conv_cuda',
+                module='det3d.ops.dcn',
+                sources=[
+                    'src/deform_conv_cuda.cpp',
+                    'src/deform_conv_cuda_kernel.cu'
+                ]),
+            make_cuda_ext(
+                name='deform_pool_cuda',
+                module='det3d.ops.dcn',
+                sources=[
+                    'src/deform_pool_cuda.cpp',
+                    'src/deform_pool_cuda_kernel.cu'
+                ]),
+            make_cuda_ext(
                 name="sigmoid_focal_loss_cuda",
                 module="det3d.ops.sigmoid_focal_loss",
                 sources=[
