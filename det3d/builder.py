@@ -18,6 +18,7 @@ from det3d.core.input.voxel_generator import VoxelGenerator
 from det3d.core.sampler.preprocess import DataBasePreprocessor
 from det3d.core.sampler.sample_ops import DataBaseSamplerV2
 from det3d.models.losses import GHMCLoss, GHMRLoss, losses
+from det3d.torchie.solver import learning_schedules_fastai as lsf
 from det3d.torchie.solver import FastAIMixedOptim, OptimWrapper
 
 def create_learning_rate_scheduler(optimizer, learning_rate_config, total_step):

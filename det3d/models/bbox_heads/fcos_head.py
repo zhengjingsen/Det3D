@@ -63,7 +63,8 @@ class FCOSHead(nn.Module):
         self.strides = strides
         self.regress_ranges = regress_ranges
         self.loss_cls = build_loss(loss_cls)
-        self.loss_bbox = build_loss(loss_bbox)
+        # self.loss_bbox = build_loss(loss_bbox)
+        self.loss_box = None
         self.loss_centerness = build_loss(loss_centerness)
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg

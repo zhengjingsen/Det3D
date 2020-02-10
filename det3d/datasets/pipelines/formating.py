@@ -19,7 +19,9 @@ class Reformat(object):
         meta = res["metadata"]
         points = res["lidar"]["points"]
         voxels = res["lidar"]["voxels"]
-        anchors = res["lidar"]["targets"]["anchors"]
+        anchors = None
+        if res["lidar"].has_key("targets"):
+            anchors = res["lidar"]["targets"]["anchors"]
 
         data_bundle = dict(
             metadata=meta,

@@ -1,9 +1,10 @@
+import os
 import numpy as np
 
-from det3d import torchie
+from skimage import io
 from det3d.datasets.kitti import kitti_common as kitti
 from det3d.core.evaluation.bbox_overlaps import bbox_overlaps
-from det3d.core.bbox import box_np_ops
+from det3d.core.bbox import box_np_ops, points_in_convex_polygon_3d_jit
 from det3d.core.sampler import preprocess as prep
 from det3d.builder import (
     build_dbsampler,
@@ -86,24 +87,22 @@ class Preprocess(object):
             assert calib is not None and "image" in res
             image_path = res["image"]["image_path"]
             image = (
-                imgio.imread(str(pathlib.Path(root_path) / image_path)).astype(
-                    np.float32
-                )
-                / 255
+                io.imread(os.path.join(res["metadata"]["image_prefix"], image_path)).astype(
+                    np.float32) / 255
             )
             points_rgb = box_np_ops.add_rgb_to_points(
                 points, image, calib["rect"], calib["Trv2c"], calib["P2"]
             )
             points = np.concatenate([points, points_rgb], axis=1)
-            num_point_features += 3
+            res["metadata"]["num_point_features"] += 3
 
         if self.reference_detections is not None:
             assert calib is not None and "image" in res
-            C, R, T = box_np_ops.projection_matrix_to_CRT_kitti(P2)
-            frustums = box_np_ops.get_frustum_v2(reference_detections, C)
+            C, R, T = box_np_ops.projection_matrix_to_CRT_kitti(calib["P2"])
+            frustums = box_np_ops.get_frustum_v2(self.reference_detections, C)
             frustums -= T
             frustums = np.einsum("ij, akj->aki", np.linalg.inv(R), frustums)
-            frustums = box_np_ops.camera_to_lidar(frustums, rect, Trv2c)
+            frustums = box_np_ops.camera_to_lidar(frustums, calib["rect"], calib["Trv2c"])
             surfaces = box_np_ops.corner_to_surfaces_3d_jit(frustums)
             masks = points_in_convex_polygon_3d_jit(points, surfaces)
             points = points[masks.any(-1)]
@@ -115,7 +114,8 @@ class Preprocess(object):
                 points, calib["rect"], calib["Trv2c"], calib["P2"], image_shape
             )
         if self.remove_environment is True and self.mode == "train":
-            selected = kitti.keep_arrays_by_name(gt_names, target_assigner.classes)
+            selected = kitti.keep_arrays_by_name(gt_dict["gt_names"],
+                                                 self.class_names)
             _dict_select(gt_dict, selected)
             masks = box_np_ops.points_in_rbbox(points, gt_dict["gt_boxes"])
             points = points[masks.any(-1)]
@@ -142,7 +142,7 @@ class Preprocess(object):
                 point_counts = box_np_ops.points_count_rbbox(
                     points, gt_dict["gt_boxes"]
                 )
-                mask = point_counts >= min_points_in_gt
+                mask = point_counts >= self.min_points_in_gt
                 _dict_select(gt_dict, mask)
 
             gt_boxes_mask = np.array(
@@ -439,7 +439,7 @@ class AssignTarget(object):
                 anchors_area = box_np_ops.fused_get_anchors_area(
                     dense_voxel_map, anchors_bv, voxel_size, pc_range, grid_size
                 )
-                anchors_mask = anchors_area > anchor_area_threshold
+                anchors_mask = anchors_area > self.anchor_area_threshold
                 example["anchors_mask"].append(anchors_mask)
 
         if res["mode"] == "train":

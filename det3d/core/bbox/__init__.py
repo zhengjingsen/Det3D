@@ -47,9 +47,9 @@ from .transforms import *
 #                                 DistanceSimilarity)
 from .iou import bbox_overlaps
 
-# from .geometry import (
-#     points_count_convex_polygon_3d_jit, is_line_segment_intersection_jit,
-#     line_segment_intersection, is_line_segment_cross, surface_equ_3d_jit,
-#     points_in_convex_polygon_3d_jit_v1, surface_equ_3d, surface_equ_3d_jitv2,
-#     points_in_convex_polygon_3d_jit, points_in_convex_polygon_jit,
-#     points_in_convex_polygon, points_in_convex_polygon_3d_jit_v2)
+from .geometry import (
+    points_count_convex_polygon_3d_jit, is_line_segment_intersection_jit,
+    line_segment_intersection, is_line_segment_cross, surface_equ_3d_jit,
+    points_in_convex_polygon_3d_jit_v1, surface_equ_3d, surface_equ_3d_jitv2,
+    points_in_convex_polygon_3d_jit, points_in_convex_polygon_jit,
+    points_in_convex_polygon, points_in_convex_polygon_3d_jit_v2)
