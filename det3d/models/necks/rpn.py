@@ -10,7 +10,6 @@ from torchvision.models import resnet
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from det3d.torchie.cnn import constant_init, kaiming_init, xavier_init
-from det3d.torchie.trainer import load_checkpoint
 from det3d.models.utils import Empty, GroupNorm, Sequential
 from det3d.models.utils import change_default_args
 

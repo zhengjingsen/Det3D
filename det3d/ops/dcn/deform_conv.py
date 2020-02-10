@@ -7,7 +7,7 @@ from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair, _single
 
 from . import deform_conv_cuda
-from det3d.torchie.apis import get_root_logger
+# from det3d.torchie.apis import get_root_logger
 
 class DeformConvFunction(Function):
 
@@ -296,11 +296,11 @@ class DeformConvPack(DeformConv):
                            'conv_offset.bias'] = state_dict.pop(prefix[:-1] +
                                                                 '_offset.bias')
 
-        if version is not None and version > 1:
-            logger = get_root_logger()   
-            logger.info(
-                'DeformConvPack {} is upgraded to version 2.'.format(
-                    prefix.rstrip('.')))
+        # if version is not None and version > 1:
+        #     logger = get_root_logger()
+        #     logger.info(
+        #         'DeformConvPack {} is upgraded to version 2.'.format(
+        #             prefix.rstrip('.')))
 
         super()._load_from_state_dict(state_dict, prefix, local_metadata,
                                       strict, missing_keys, unexpected_keys,
@@ -419,11 +419,11 @@ class ModulatedDeformConvPack(ModulatedDeformConv):
                            'conv_offset.bias'] = state_dict.pop(prefix[:-1] +
                                                                 '_offset.bias')
 
-        if version is not None and version > 1:
-            logger = get_root_logger()
-            logger.info(
-                'ModulatedDeformConvPack {} is upgraded to version 2.'.format(
-                    prefix.rstrip('.')))
+        # if version is not None and version > 1:
+        #     logger = get_root_logger()
+        #     logger.info(
+        #         'ModulatedDeformConvPack {} is upgraded to version 2.'.format(
+        #             prefix.rstrip('.')))
 
         super()._load_from_state_dict(state_dict, prefix, local_metadata,
                                       strict, missing_keys, unexpected_keys,

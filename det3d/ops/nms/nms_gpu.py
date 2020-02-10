@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numba
 import numpy as np
-from det3d.utils.buildtools.pybind11_build import load_pb11
+from det3d.torchie.utils import load_pb11
 from numba import cuda
 
 try:

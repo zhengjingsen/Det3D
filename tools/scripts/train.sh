@@ -21,7 +21,7 @@ fi
 # python -m torch.distributed.launch --nproc_per_node=8 ./tools/train.py examples/second/configs/lyft_all_vfev3_spmiddleresnetfhd_rpn2_mghead_syncbn.py --work_dir=$LYFT_CBGS_WORK_DIR
 
 # PointPillars
-python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/point_pillars/configs/kitti_point_pillars_mghead_syncbn.py
+#python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/point_pillars/configs/kitti_point_pillars_mghead_syncbn.py
 
 #FCOS
-#python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/fcos/kitti_fcos_mghead_syncbn.py
+python -m torch.distributed.launch --nproc_per_node=1 ./tools/train.py ./examples/fcos/kitti_fcos_mghead_syncbn.py

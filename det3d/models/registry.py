@@ -1,4 +1,4 @@
-from det3d.utils import Registry
+from det3d.torchie.utils import Registry
 
 READERS = Registry("reader")
 BACKBONES = Registry("backbone")

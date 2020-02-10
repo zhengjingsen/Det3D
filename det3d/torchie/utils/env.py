@@ -7,8 +7,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from det3d.torchie.trainer import get_dist_info
-
+from det3d.torchie.runner import get_dist_info
 
 def init_dist(launcher, backend="nccl", **kwargs):
     if mp.get_start_method(allow_none=True) is None:

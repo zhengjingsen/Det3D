@@ -1,4 +1,4 @@
-from det3d.utils import build_from_cfg
+from det3d.torchie.utils import build_from_cfg
 from torch import nn
 
 from .registry import (

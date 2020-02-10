@@ -4,6 +4,7 @@ import numba
 import numpy as np
 
 from det3d.core.bbox import box_np_ops
+from det3d.torchie.utils import load_pb11
 from det3d.ops.nms.nms_gpu import rotate_iou_gpu
 
 try:

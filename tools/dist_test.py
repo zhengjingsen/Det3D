@@ -12,16 +12,13 @@ from det3d.datasets import build_dataloader, build_dataset
 from det3d.datasets.kitti import kitti_common as kitti
 from det3d.models import build_detector
 from det3d.torchie import Config
-from det3d.torchie.apis import (
-    batch_processor,
-    build_optimizer,
-    get_root_logger,
-    init_dist,
-    set_random_seed,
-    train_detector,
+from det3d.torchie.utils import get_root_logger
+from det3d.torchie.runner import (
+    load_checkpoint,
+    all_gather,
+    synchronize
 )
-from det3d.torchie.trainer import get_dist_info, load_checkpoint
-from det3d.torchie.trainer.utils import all_gather, synchronize
+from .utils import batch_processor
 from torch.nn.parallel import DistributedDataParallel
 
 

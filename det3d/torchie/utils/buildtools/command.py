@@ -8,7 +8,7 @@ from functools import partial
 from pathlib import Path
 
 import fire
-from det3d.utils.find import find_cuda, find_cuda_device_arch
+from det3d.torchie.utils.find import find_cuda, find_cuda_device_arch
 
 
 class Gpp:

@@ -28,7 +28,19 @@ from .progressbar import (
     track_parallel_progress,
     track_progress,
 )
+from .check import (
+    shape_mergeable
+)
+from .env import (
+    get_root_logger,
+    init_dist,
+    set_random_seed
+)
+
 from .timer import Timer, TimerError, check_time
+from .flops_counter import get_model_complexity_info
+from .registry import Registry, build_from_cfg
+from .buildtools import *
 
 __all__ = [
     "ConfigDict",
@@ -59,4 +71,11 @@ __all__ = [
     "Timer",
     "TimerError",
     "check_time",
+    "Registry",
+    "build_from_cfg",
+    "get_model_complexity_info",
+    "shape_mergeable",
+    "get_root_logger",
+    "init_dist",
+    "set_random_seed"
 ]

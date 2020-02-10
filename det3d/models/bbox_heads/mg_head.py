@@ -8,7 +8,7 @@ from det3d.core import box_torch_ops
 from det3d.models.builder import build_loss
 from det3d.models.losses import metrics
 from det3d.torchie.cnn import constant_init, kaiming_init
-from det3d.torchie.trainer import load_checkpoint
+from det3d.torchie.runner import load_checkpoint
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import _BatchNorm

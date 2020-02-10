@@ -20,6 +20,7 @@ from .weight_init import (
     uniform_init,
     xavier_init,
 )
+from .generalized_attention import GeneralizedAttention
 
 __all__ = [
     "conv_ws_2d",
@@ -42,4 +43,5 @@ __all__ = [
     "get_printer",
     "register_hook",
     "get_paddings_indicator",
+    "GeneralizedAttention"
 ]

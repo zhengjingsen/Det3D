@@ -1,25 +1,24 @@
 from __future__ import division
 
 import re
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from functools import partial
 
 import apex
-import numpy as np
 import torch
-from det3d.builder import _create_learning_rate_scheduler
 
-# from det3d.datasets.kitti.eval_hooks import KittiDistEvalmAPHook, KittiEvalmAPHookV2
+from det3d.builder import create_learning_rate_scheduler
 from det3d.core import DistOptimizerHook
-from det3d.datasets import DATASETS, build_dataloader
-from det3d.solver.fastai_optim import OptimWrapper
-from det3d.torchie.trainer import DistSamplerSeedHook, Trainer, obj_from_dict
-from det3d.utils.print_utils import metric_to_str
+from det3d.datasets import build_dataloader
+from det3d.torchie.solver.fastai_optim import OptimWrapper
+from det3d.torchie.runner import (
+    DistSamplerSeedHook,
+    Trainer,
+    obj_from_dict)
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
-from .env import get_root_logger
-
+from det3d.torchie.utils.env import get_root_logger
 
 def example_convert_to_torch(example, dtype=torch.float32, device=None) -> dict:
     assert device is not None
@@ -178,7 +177,7 @@ def build_one_cycle_optimizer(model, optimizer_config):
             torch.optim.Adam, betas=(0.9, 0.99), amsgrad=optimizer_config.amsgrad
         )
     else:
-        optimizer_func = partial(torch.optim.Adam, amsgrad=optimizer_cfg.amsgrad)
+        optimizer_func = partial(torch.optim.Adam, amsgrad=optimizer_config.amsgrad)
 
     optimizer = OptimWrapper.create(
         optimizer_func,
@@ -287,7 +286,7 @@ def train_detector(model, dataset, cfg, distributed=False, validate=False, logge
     if cfg.lr_config.type == "one_cycle":
         # build trainer
         optimizer = build_one_cycle_optimizer(model, cfg.optimizer)
-        lr_scheduler = _create_learning_rate_scheduler(
+        lr_scheduler = create_learning_rate_scheduler(
             optimizer, cfg.lr_config, total_steps
         )
         cfg.lr_config = None

@@ -3,8 +3,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from det3d.utils.find import find_cuda_device_arch
-from det3d.utils.loader import import_file
+from det3d.torchie.utils.find import find_cuda_device_arch
+from det3d.torchie.utils.loader import import_file
 
 from .command import CUDALink, Gpp, Nvcc, compile_libraries, out
 

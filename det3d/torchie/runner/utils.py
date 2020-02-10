@@ -3,11 +3,80 @@ This file contains primitives for multi-gpu communication.
 This is useful when doing distributed training.
 """
 
+import os
+import functools
 import pickle
+import sys
 import time
+import logging
+
+from getpass import getuser
+from socket import gethostname
 
 import torch
 import torch.distributed as dist
+from det3d import torchie
+
+
+def get_host_info():
+    return "{}@{}".format(getuser(), gethostname())
+
+
+def get_dist_info():
+    if torch.__version__ < "1.0":
+        initialized = dist._initialized
+    else:
+        initialized = dist.is_initialized()
+    if initialized:
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    else:
+        rank = 0
+        world_size = 1
+    return rank, world_size
+
+
+def master_only(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        rank, _ = get_dist_info()
+        if rank == 0:
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
+def get_time_str():
+    return time.strftime("%Y%m%d_%H%M%S", time.localtime())
+
+
+def obj_from_dict(info, parent=None, default_args=None):
+    """Initialize an object from dict.
+
+    The dict must contain the key "type", which indicates the object type
+
+    Args:
+        info (dict): Object types and arguments
+        parent (:class:`modules`):
+        default_args (dict, optional):
+    """
+    assert isinstance(info, dict) and "type" in info
+    assert isinstance(default_args, dict) or default_args is None
+    args = info.copy()
+    obj_type = args.pop("type")
+    if torchie.is_str(obj_type):
+        if parent is not None:
+            obj_type = getattr(parent, obj_type)
+        else:
+            obj_type = sys.modules[obj_type]
+    elif not isinstance(obj_type, type):
+        raise TypeError(
+            "type must be a str or valid type, but got {}".format(type(obj_type))
+        )
+    if default_args is not None:
+        for name, value in default_args.items():
+            args.setdefault(name, value)
+    return obj_type(**args)
 
 
 def get_world_size():
@@ -115,3 +184,24 @@ def reduce_dict(input_dict, average=True):
             values /= world_size
         reduced_dict = {k: v for k, v in zip(names, values)}
     return reduced_dict
+
+def setup_logger(name, save_dir, distributed_rank, filename="log.txt"):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    # don't log results for the non-master process
+    if distributed_rank > 0:
+        return logger
+
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s: %(message)s")
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    if save_dir:
+        fh = logging.FileHandler(os.path.join(save_dir, filename))
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+
+    return logger

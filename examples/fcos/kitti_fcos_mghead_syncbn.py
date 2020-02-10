@@ -1,8 +1,6 @@
 import itertools
 import logging
 
-from det3d.builder import build_box_coder
-from det3d.utils.config_tool import get_downsample_factor
 
 # norm_cfg = dict(type='SyncBN', eps=1e-3, momentum=0.01)
 norm_cfg = None
@@ -32,7 +30,7 @@ test_cfg = dict(
 
 # dataset settings
 dataset_type = "KittiDataset"
-data_root = "/media/jingsen/zhengjs/Datasets/kitti_object"
+data_root = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
 
 db_sampler = dict(
     type="GT-AUG",
@@ -143,7 +141,7 @@ model = dict(
         norm_cfg=norm_cfg,
         conv_cfg=dict(
             type='ResNeXt',
-            depth=18,
+            depth=50,
             groups=64,
             base_width=4,
             num_stages=4,
@@ -228,7 +226,7 @@ total_epochs = 100
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
-work_dir = "/media/jingsen/data/det3d_output/debug"
+work_dir = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
 load_from = None
 resume_from = None
 workflow = [("train", 5), ("val", 1)]

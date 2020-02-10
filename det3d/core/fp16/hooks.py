@@ -2,7 +2,7 @@ import copy
 
 import torch
 import torch.nn as nn
-from det3d.torchie.trainer import OptimizerHook
+from det3d.torchie.runner import OptimizerHook
 
 from ..utils.dist_utils import allreduce_grads
 from .utils import cast_tensor_type

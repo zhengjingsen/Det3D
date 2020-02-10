@@ -56,7 +56,6 @@ def example_to_device(example, device, non_blocking=False) -> dict:
 
     return example_torch
 
-
 def parse_second_losses(losses):
 
     log_vars = OrderedDict()
@@ -68,7 +67,6 @@ def parse_second_losses(losses):
             log_vars[loss_name] = [i.item() for i in loss_value]
 
     return loss, log_vars
-
 
 class BackgroundGenerator(threading.Thread):
     def __init__(self, generator, max_prefetch=1):

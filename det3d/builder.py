@@ -2,9 +2,11 @@ import logging
 import pickle
 from functools import partial
 
-#import det3d.core.sampler.preprocess as prep
+import det3d.core.sampler.preprocess as prep
 import numpy as np
 import torch
+from torch import nn
+
 from det3d.core.anchor.anchor_generator import (
     AnchorGeneratorRange,
     AnchorGeneratorStride,
@@ -16,12 +18,57 @@ from det3d.core.input.voxel_generator import VoxelGenerator
 from det3d.core.sampler.preprocess import DataBasePreprocessor
 from det3d.core.sampler.sample_ops import DataBaseSamplerV2
 from det3d.models.losses import GHMCLoss, GHMRLoss, losses
-from det3d.solver import learning_schedules
-from det3d.solver import learning_schedules_fastai as lsf
-from det3d.solver import optim
-from det3d.solver.fastai_optim import FastAIMixedOptim, OptimWrapper
-from torch import nn
+from det3d.torchie.solver import FastAIMixedOptim, OptimWrapper
 
+def create_learning_rate_scheduler(optimizer, learning_rate_config, total_step):
+    """Create optimizer learning rate scheduler based on config.
+
+    Args:
+        learning_rate_config: A LearningRate proto message.
+
+    Returns:
+        A learning rate.
+
+    Raises:
+        ValueError: when using an unsupported input data type.
+    """
+    lr_scheduler = None
+    learning_rate_type = learning_rate_config.type
+    config = learning_rate_config
+
+    if learning_rate_type == "multi_phase":
+        lr_phases = []
+        mom_phases = []
+        for phase_cfg in config.phases:
+            lr_phases.append((phase_cfg.start, phase_cfg.lambda_func))
+            mom_phases.append((phase_cfg.start, phase_cfg.momentum_lambda_func))
+        lr_scheduler = lsf.LRSchedulerStep(optimizer, total_step, lr_phases, mom_phases)
+    elif learning_rate_type == "one_cycle":
+        lr_scheduler = lsf.OneCycle(
+            optimizer,
+            total_step,
+            config.lr_max,
+            config.moms,
+            config.div_factor,
+            config.pct_start,
+        )
+    elif learning_rate_type == "exponential_decay":
+        lr_scheduler = lsf.ExponentialDecay(
+            optimizer,
+            total_step,
+            config.initial_learning_rate,
+            config.decay_length,
+            config.decay_factor,
+            config.staircase,
+        )
+    elif learning_rate_type == "manual_stepping":
+        lr_scheduler = lsf.ManualStepping(
+            optimizer, total_step, config.boundaries, config.rates
+        )
+    elif lr_scheduler is None:
+        raise ValueError("Learning_rate %s not supported." % learning_rate_type)
+
+    return lr_scheduler
 
 def build_voxel_generator(voxel_config):
 
@@ -173,68 +220,17 @@ def build_lr_scheduler(optimizer, optimizer_config, total_step):
     config = optimizer_config
 
     if optimizer_type == "rms_prop_optimizer":
-        lr_scheduler = _create_learning_rate_scheduler(
+        lr_scheduler = create_learning_rate_scheduler(
             config, optimizer, total_step=total_step
         )
     elif optimizer_type == "momentum_optimizer":
-        lr_scheduler = _create_learning_rate_scheduler(
+        lr_scheduler = create_learning_rate_scheduler(
             config, optimizer, total_step=total_step
         )
     elif optimizer_type == "adam":
-        lr_scheduler = _create_learning_rate_scheduler(
+        lr_scheduler = create_learning_rate_scheduler(
             config, optimizer, total_step=total_step
         )
-
-    return lr_scheduler
-
-
-def _create_learning_rate_scheduler(optimizer, learning_rate_config, total_step):
-    """Create optimizer learning rate scheduler based on config.
-
-    Args:
-        learning_rate_config: A LearningRate proto message.
-
-    Returns:
-        A learning rate.
-
-    Raises:
-        ValueError: when using an unsupported input data type.
-    """
-    lr_scheduler = None
-    learning_rate_type = learning_rate_config.type
-    config = learning_rate_config
-
-    if learning_rate_type == "multi_phase":
-        lr_phases = []
-        mom_phases = []
-        for phase_cfg in config.phases:
-            lr_phases.append((phase_cfg.start, phase_cfg.lambda_func))
-            mom_phases.append((phase_cfg.start, phase_cfg.momentum_lambda_func))
-        lr_scheduler = lsf.LRSchedulerStep(optimizer, total_step, lr_phases, mom_phases)
-    elif learning_rate_type == "one_cycle":
-        lr_scheduler = lsf.OneCycle(
-            optimizer,
-            total_step,
-            config.lr_max,
-            config.moms,
-            config.div_factor,
-            config.pct_start,
-        )
-    elif learning_rate_type == "exponential_decay":
-        lr_scheduler = lsf.ExponentialDecay(
-            optimizer,
-            total_step,
-            config.initial_learning_rate,
-            config.decay_length,
-            config.decay_factor,
-            config.staircase,
-        )
-    elif learning_rate_type == "manual_stepping":
-        lr_scheduler = lsf.ManualStepping(
-            optimizer, total_step, config.boundaries, config.rates
-        )
-    elif lr_scheduler is None:
-        raise ValueError("Learning_rate %s not supported." % learning_rate_type)
 
     return lr_scheduler
 

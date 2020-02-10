@@ -5,7 +5,7 @@ import torch.nn as nn
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 from .resnet import Bottleneck as _Bottleneck
-from .resnet import ResNet, BasicBlock
+from .resnet import ResNet
 
 
 class Bottleneck(_Bottleneck):
@@ -180,13 +180,11 @@ class ResNeXt(ResNet):
         (1, 2048, 1, 1)
     """
 
-    # arch_settings = {
-    #     18: (BasicBlock, (2, 2, 2, 2)),
-    #     34: (BasicBlock, (3, 4, 6, 3)),
-    #     50: (Bottleneck, (3, 4, 6, 3)),
-    #     101: (Bottleneck, (3, 4, 23, 3)),
-    #     152: (Bottleneck, (3, 8, 36, 3))
-    # }
+    arch_settings = {
+        50: (Bottleneck, (3, 4, 6, 3)),
+        101: (Bottleneck, (3, 4, 23, 3)),
+        152: (Bottleneck, (3, 8, 36, 3))
+    }
 
     def __init__(self, groups=1, base_width=4, **kwargs):
         super(ResNeXt, self).__init__(**kwargs)

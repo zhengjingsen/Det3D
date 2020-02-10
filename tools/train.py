@@ -10,14 +10,11 @@ from det3d import __version__
 from det3d.datasets import build_dataset
 from det3d.models import build_detector
 from det3d.torchie import Config
-from det3d.torchie.apis import (
-    build_optimizer,
+from det3d.torchie.utils import (
     get_root_logger,
-    init_dist,
     set_random_seed,
-    train_detector,
 )
-
+from tools.utils import train_detector
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a detector")

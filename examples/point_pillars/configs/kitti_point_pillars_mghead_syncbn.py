@@ -251,7 +251,7 @@ total_epochs = 100
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
-work_dir = "/media/jingsen/data/det3d_output/debug"
+work_dir = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
 load_from = None
 resume_from = None
 workflow = [("train", 5), ("val", 1)]

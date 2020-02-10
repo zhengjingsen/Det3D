@@ -17,7 +17,6 @@ from .registry import DATASETS
 # from .xml_style import XMLDataset
 #
 __all__ = [
-    "CustomDataset",
     "KittiDataset",
     "GroupSampler",
     "DistributedGroupSampler",

@@ -1,6 +1,6 @@
 import torch
 
-from mmdet.ops.nms import nms_wrapper
+from det3d.ops.nms import nms_cpu
 
 
 def multiclass_nms(multi_bboxes,
@@ -30,8 +30,8 @@ def multiclass_nms(multi_bboxes,
     num_classes = multi_scores.shape[1]
     bboxes, labels = [], []
     nms_cfg_ = nms_cfg.copy()
-    nms_type = nms_cfg_.pop('type', 'nms')
-    nms_op = getattr(nms_wrapper, nms_type)
+    nms_type = nms_cfg_.pop('type', 'nms_jit')
+    nms_op = getattr(nms_cpu, nms_type)
     for i in range(1, num_classes):
         cls_inds = multi_scores[:, i] > score_thr
         if not cls_inds.any():

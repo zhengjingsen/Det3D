@@ -1,34 +1,24 @@
 import argparse
-import logging
 import os
-import os.path as osp
-import shutil
-import tempfile
 
 import torch
-import torch.distributed as dist
 from det3d import torchie
-from det3d.core import coco_eval, results2json
 from det3d.datasets import build_dataloader, build_dataset
 from det3d.datasets.kitti import kitti_common as kitti
-from det3d.datasets.kitti.eval import get_official_eval_result
 from det3d.datasets.utils.kitti_object_eval_python.evaluate import (
     evaluate as kitti_evaluate,
 )
 from det3d.models import build_detector
 from det3d.torchie.apis import init_dist
-from det3d.torchie.apis.train import example_convert_to_torch
-from det3d.torchie.parallel import MegDataParallel, MegDistributedDataParallel
+from det3d.torchie.parallel import MegDataParallel
 from det3d.torchie.trainer import get_dist_info, load_checkpoint
 from det3d.torchie.trainer.trainer import example_to_device
 from det3d.utils.dist.dist_common import (
     all_gather,
-    get_rank,
     get_world_size,
     is_main_process,
     synchronize,
 )
-from tqdm import tqdm
 
 
 def test(

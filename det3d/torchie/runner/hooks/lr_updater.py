@@ -1,11 +1,7 @@
 from __future__ import division
 
 from math import cos, pi
-
-from det3d.solver import learning_schedules_fastai as lsf
-
 from .hook import Hook
-
 
 class LrUpdaterHook(Hook):
     def __init__(

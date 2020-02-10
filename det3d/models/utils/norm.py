@@ -2,7 +2,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 from det3d.ops.syncbn import DistributedSyncBN
-from det3d.utils.dist import dist_common as comm
+from det3d.torchie.runner import get_world_size
 from torch.autograd.function import Function
 from torch.nn import BatchNorm2d
 
@@ -33,7 +33,7 @@ class NaiveSyncBatchNorm(BatchNorm2d):
     """
 
     def forward(self, input):
-        if comm.get_world_size() == 1 or not self.training:
+        if get_world_size() == 1 or not self.training:
             return super().forward(input)
 
         assert input.shape[0] > 0, "SyncBatchNorm does not support empty input"
