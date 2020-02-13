@@ -19,8 +19,8 @@ class Reformat(object):
         meta = res["metadata"]
         points = res["lidar"]["points"]
         voxels = res["lidar"]["voxels"]
-        anchors = None
-        if res["lidar"].has_key("targets"):
+        anchors = {}
+        if "anchors" in res["lidar"]["targets"]:
             anchors = res["lidar"]["targets"]["anchors"]
 
         data_bundle = dict(
@@ -47,16 +47,15 @@ class Reformat(object):
 
         if res["mode"] == "train":
             ground_plane = res["lidar"].get("ground_plane", None)
-            labels = res["lidar"]["targets"]["labels"]
-            reg_targets = res["lidar"]["targets"]["reg_targets"]
-            reg_weights = res["lidar"]["targets"]["reg_weights"]
-
             if ground_plane:
                 data_bundle["ground_plane"] = ground_plane
 
-            data_bundle.update(
-                dict(labels=labels, reg_targets=reg_targets, reg_weights=reg_weights,)
-            )
+            if "labels" in res["lidar"]["targets"]:
+                data_bundle.update(labels = res["lidar"]["targets"]["labels"])
+            if "reg_targets" in res["lidar"]["targets"]:
+                data_bundle.update(reg_targets = res["lidar"]["targets"]["reg_targets"])
+            if "reg_weights" in res["lidar"]["targets"]:
+                data_bundle.update(reg_weights = res["lidar"]["targets"]["reg_weights"])
 
         return data_bundle, info
 

@@ -15,7 +15,7 @@ from .transforms import (
     Resize,
     SegResizeFlipPadRescale,
 )
-from .preprocess import Preprocess, Voxelization, AssignTarget
+from .preprocess import Preprocess, Voxelization, AssignTarget, SegmentAssignTarget
 
 __all__ = [
     "Compose",
@@ -41,4 +41,5 @@ __all__ = [
     "Preprocess",
     "Voxelization",
     "AssignTarget",
+    "SegmentAssignTarget",
 ]

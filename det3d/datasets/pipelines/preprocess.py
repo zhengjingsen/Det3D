@@ -298,6 +298,24 @@ class Voxelization(object):
 
         return res, info
 
+@PIPELINES.register_module
+class SegmentAssignTarget(object):
+    def __init__(self, **kwargs):
+        assigner_cfg = kwargs["cfg"]
+
+    def __call__(self, res, info):
+        if res["mode"] == "train":
+            gt_dict = res["lidar"]["annotations"]
+           
+            example = {}
+            example.update(
+                {
+                    "labels": [gt_dict["gt_classes"]],
+                    "reg_targets": [gt_dict["gt_boxes"]],
+                }
+            )
+            res["lidar"]["targets"] = example
+        return res, info
 
 @PIPELINES.register_module
 class AssignTarget(object):

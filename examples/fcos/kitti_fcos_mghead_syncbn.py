@@ -30,7 +30,7 @@ test_cfg = dict(
 
 # dataset settings
 dataset_type = "KittiDataset"
-data_root = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
+data_root = "/media/jingsen/zhengjs/Datasets/kitti_object/"
 
 db_sampler = dict(
     type="GT-AUG",
@@ -70,8 +70,8 @@ val_preprocessor = dict(
 )
 
 voxel_generator = dict(
-    range=[0, -39.68, -3, 69.12, 39.68, 1],
-    voxel_size=[0.16, 0.16, 4.0],
+    range=[0, -38.4, -3, 67.2, 38.4, 1],
+    voxel_size=[0.15, 0.15, 4.0],
     max_points_in_voxel=100,
     max_voxel_num=12000,
 )
@@ -81,6 +81,7 @@ train_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=train_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
+    dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
     # dict(type='PointCloudCollect', keys=['points', 'voxels', 'annotations', 'calib']),
 ]
@@ -89,6 +90,7 @@ test_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=val_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
+    dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
 ]
 
@@ -97,8 +99,8 @@ val_anno = data_root + "/kitti_infos_val.pkl"
 test_anno = None
 
 data = dict(
-    samples_per_gpu=3,
-    workers_per_gpu=3,
+    samples_per_gpu=1,
+    workers_per_gpu=1,
     train=dict(
         type=dataset_type,
         root_path=data_root,
@@ -141,6 +143,7 @@ model = dict(
         norm_cfg=norm_cfg,
         conv_cfg=dict(
             type='ResNeXt',
+            in_channels=64,
             depth=50,
             groups=64,
             base_width=4,
@@ -226,7 +229,7 @@ total_epochs = 100
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
-work_dir = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
+work_dir = "/media/jingsen/data/det3d_output/fcos"
 load_from = None
 resume_from = None
 workflow = [("train", 5), ("val", 1)]
