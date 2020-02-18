@@ -7,6 +7,7 @@ import time
 from collections import OrderedDict
 
 import torch
+import torch.distributed as dist
 from det3d import torchie
 
 from . import hooks
@@ -29,7 +30,6 @@ from .utils import (
     obj_from_dict,
     synchronize,
 )
-
 
 def example_to_device(example, device, non_blocking=False) -> dict:
     example_torch = {}
@@ -56,8 +56,30 @@ def example_to_device(example, device, non_blocking=False) -> dict:
 
     return example_torch
 
-def parse_second_losses(losses):
+def parse_losses(losses):
+    log_vars = OrderedDict()
+    for loss_name, loss_value in losses.items():
+        if isinstance(loss_value, torch.Tensor):
+            log_vars[loss_name] = loss_value.mean()
+        elif isinstance(loss_value, list):
+            log_vars[loss_name] = sum(_loss.mean() for _loss in loss_value)
+        else:
+            raise TypeError(
+                '{} is not a tensor or list of tensors'.format(loss_name))
 
+    loss = sum(_value for _key, _value in log_vars.items() if 'loss' in _key)
+
+    log_vars['loss'] = loss
+    for loss_name, loss_value in log_vars.items():
+        # reduce loss when distributed training
+        if dist.is_available() and dist.is_initialized():
+            loss_value = loss_value.data.clone()
+            dist.all_reduce(loss_value.div_(dist.get_world_size()))
+        log_vars[loss_name] = loss_value.item()
+
+    return loss, log_vars
+
+def parse_second_losses(losses):
     log_vars = OrderedDict()
     loss = sum(losses["loss"])
     for loss_name, loss_value in losses.items():
@@ -359,11 +381,12 @@ class Trainer(object):
         if train_mode:
             losses = model(example, return_loss=True)
             self.call_hook("after_forward")
-            loss, log_vars = parse_second_losses(losses)
+            # loss, log_vars = parse_second_losses(losses)
+            loss, log_vars = parse_losses(losses)
             del losses
 
             outputs = dict(
-                loss=loss, log_vars=log_vars, num_samples=len(example["anchors"][0])
+                loss=loss, log_vars=log_vars, num_samples=example["shape"].shape[0]
             )
             self.call_hook("after_parse_loss")
 

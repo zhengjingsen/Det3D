@@ -38,7 +38,6 @@ class KittiDataset(PointCloudDataset):
         self._num_point_features = __class__.NumPointFeatures
         # print("remain number of infos:", len(self._kitti_infos))
         self._class_names = class_names
-        self.plane_dir = "/media/jingsen/zhengjs/Datasets/kitti_object/training/planes"
 
     def __len__(self):
         if not hasattr(self, "_kitti_infos"):
@@ -48,7 +47,7 @@ class KittiDataset(PointCloudDataset):
         return len(self._kitti_infos)
 
     def get_road_plane(self, idx):
-        plane_file = os.path.join(self.plane_dir, "%06d.txt" % idx)
+        plane_file = os.path.join(self._root_path, "training/planes/%06d.txt" % idx)
         with open(plane_file, "r") as f:
             lines = f.readlines()
         lines = [float(i) for i in lines[3].split()]

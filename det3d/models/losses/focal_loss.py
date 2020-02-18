@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from det3d.ops import sigmoid_focal_loss as _sigmoid_focal_loss
+from det3d.ops.sigmoid_focal_loss import sigmoid_focal_loss as _sigmoid_focal_loss
 
 from ..registry import LOSSES
 from .utils import weight_reduce_loss

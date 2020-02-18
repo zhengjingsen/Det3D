@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from collections import defaultdict
 from det3d.torchie.cnn import normal_init
 
 from det3d.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
@@ -38,6 +39,7 @@ class FCOSHead(nn.Module):
                  strides=(4, 8, 16, 32, 64),
                  regress_ranges=((-1, 4), (4, 8), (8, 16), (16, 32),
                                  (32, INF)),
+                 tasks = None,
                  loss_cls=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -55,7 +57,7 @@ class FCOSHead(nn.Module):
 
         self.num_classes = num_classes
         self.cls_out_channels = num_classes - 1
-        self.reg_out_channels = 2 + 2 + 2       # dx, dy; l, w, h; sin, cos
+        self.reg_out_channels = 3 + 3 + 2       # dx, dy, z; l, w, h; sin, cos
         self.in_channels = in_channels
         self.voxel_cfg = voxel_cfg
         self.feat_channels = feat_channels
@@ -63,13 +65,12 @@ class FCOSHead(nn.Module):
         self.strides = strides
         self.regress_ranges = regress_ranges
         self.loss_cls = build_loss(loss_cls)
-        # self.loss_bbox = build_loss(loss_bbox)
-        self.loss_box = None
+        self.loss_bbox = build_loss(loss_bbox)
         self.loss_centerness = build_loss(loss_centerness)
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
         self.fp16_enabled = False
-
+        self.class_names = [t["class_names"] for t in tasks]
         self._init_layers()
 
     def _init_layers(self):
@@ -132,7 +133,8 @@ class FCOSHead(nn.Module):
             reg_feat = reg_layer(reg_feat)
         # scale the bbox_pred of different level
         # float to avoid overflow when enabling FP16
-        bbox_pred = scale(self.fcos_reg(reg_feat)).float().exp()
+        bbox_pred = self.fcos_reg(reg_feat).float()
+        bbox_pred[:, 3:6, :, :].exp_()
         return cls_score, bbox_pred, centerness
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'centernesses'))
@@ -141,16 +143,13 @@ class FCOSHead(nn.Module):
              bbox_preds,
              centernesses,
              gt_bboxes,
-             gt_labels,
-             img_metas,
-             cfg,
-             gt_bboxes_ignore=None):
+             gt_labels):
         assert len(cls_scores) == len(bbox_preds) == len(centernesses)
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         all_level_points = self.get_points(featmap_sizes, bbox_preds[0].dtype,
                                            bbox_preds[0].device)
-        labels, bbox_targets = self.fcos_target(all_level_points, gt_bboxes,
-                                                gt_labels)
+        labels, bbox_targets, centerness_targets = \
+            self.fcos_target(all_level_points, gt_bboxes, gt_labels)
 
         num_imgs = cls_scores[0].size(0)
         # flatten cls_scores, bbox_preds and centerness
@@ -162,15 +161,19 @@ class FCOSHead(nn.Module):
             bbox_pred.permute(0, 2, 3, 1).reshape(-1, self.reg_out_channels)
             for bbox_pred in bbox_preds
         ]
-        flatten_centerness = [
+        flatten_centerness_preds = [
             centerness.permute(0, 2, 3, 1).reshape(-1)
             for centerness in centernesses
         ]
         flatten_cls_scores = torch.cat(flatten_cls_scores)
         flatten_bbox_preds = torch.cat(flatten_bbox_preds)
-        flatten_centerness = torch.cat(flatten_centerness)
+        flatten_centerness_preds = torch.cat(flatten_centerness_preds)
+
+        # flatten targets
         flatten_labels = torch.cat(labels)
         flatten_bbox_targets = torch.cat(bbox_targets)
+        flatten_centerness_targets = torch.cat(centerness_targets)
+
         # repeat points to align with bbox_preds
         flatten_points = torch.cat(
             [points.repeat(num_imgs, 1) for points in all_level_points])
@@ -182,31 +185,186 @@ class FCOSHead(nn.Module):
             avg_factor=num_pos + num_imgs)  # avoid num_pos is 0
 
         pos_bbox_preds = flatten_bbox_preds[pos_inds]
-        pos_centerness = flatten_centerness[pos_inds]
+        pos_centerness_preds = flatten_centerness_preds[pos_inds]
 
         if num_pos > 0:
+            # pos_bbox_targets = flatten_bbox_targets[pos_inds]
+            # pos_centerness_targets = self.centerness_target(pos_bbox_targets)
+            # pos_points = flatten_points[pos_inds]
+            # pos_decoded_bbox_preds = distance2bbox(pos_points, pos_bbox_preds)
+            # pos_decoded_bbox_target = distance2bbox(pos_points,
+            #                                          pos_bbox_targets)
+            # # centerness weighted iou loss
+            # loss_bbox = self.loss_bbox(
+            #     pos_decoded_bbox_preds,
+            #     pos_decoded_bbox_target,
+            #     weight=pos_centerness_targets,
+            #     avg_factor=pos_centerness_targets.sum())
+            # loss_centerness = self.loss_centerness(pos_centerness_preds,
+            #                                        pos_centerness_targets)
+
             pos_bbox_targets = flatten_bbox_targets[pos_inds]
-            pos_centerness_targets = self.centerness_target(pos_bbox_targets)
-            pos_points = flatten_points[pos_inds]
-            pos_decoded_bbox_preds = distance2bbox(pos_points, pos_bbox_preds)
-            pos_decoded_target_preds = distance2bbox(pos_points,
-                                                     pos_bbox_targets)
-            # centerness weighted iou loss
+            pos_centerness_targets = flatten_centerness_targets[pos_inds]
             loss_bbox = self.loss_bbox(
-                pos_decoded_bbox_preds,
-                pos_decoded_target_preds,
-                weight=pos_centerness_targets,
+                pos_bbox_preds, pos_bbox_targets,
+                weight=pos_centerness_targets[:, None].repeat(1, self.reg_out_channels),
                 avg_factor=pos_centerness_targets.sum())
-            loss_centerness = self.loss_centerness(pos_centerness,
+            loss_centerness = self.loss_centerness(pos_centerness_preds,
                                                    pos_centerness_targets)
         else:
             loss_bbox = pos_bbox_preds.sum()
-            loss_centerness = pos_centerness.sum()
+            loss_centerness = pos_centerness_preds.sum()
 
-        return dict(
-            loss_cls=loss_cls,
-            loss_bbox=loss_bbox,
-            loss_centerness=loss_centerness)
+        rets = dict()
+        rets["loss_cls"] = loss_cls
+        rets["loss_bbox"] = loss_bbox
+        rets["loss_centerness"] = loss_centerness
+        return rets
+
+    def get_points(self, featmap_sizes, dtype, device):
+        """Get points according to feature map sizes.
+
+        Args:
+            featmap_sizes (list[tuple]): Multi-level feature map sizes.
+            dtype (torch.dtype): Type of points.
+            device (torch.device): Device of points.
+
+        Returns:
+            tuple: points of each image.
+        """
+        mlvl_points = []
+        for i in range(len(featmap_sizes)):
+            mlvl_points.append(
+                self.get_points_single(featmap_sizes[i], self.strides[i],
+                                       dtype, device))
+        return mlvl_points
+
+    def get_points_single(self, featmap_size, stride, dtype, device):
+        h, w = featmap_size
+        x_range = torch.arange(
+            0, w * stride, stride, dtype=dtype, device=device)
+        y_range = torch.arange(
+            0, h * stride, stride, dtype=dtype, device=device)
+        y, x = torch.meshgrid(y_range, x_range)
+
+        x = (x + stride // 2) * self.voxel_cfg['voxel_size'][0] + self.voxel_cfg['range'][0]
+        y = (y + stride // 2) * self.voxel_cfg['voxel_size'][1] + self.voxel_cfg['range'][1]
+        points = torch.stack(
+            (x.reshape(-1), y.reshape(-1)), dim=-1)
+        return points
+
+    def fcos_target(self, points, gt_bboxes_list, gt_labels_list):
+        assert len(points) == len(self.regress_ranges)
+        num_levels = len(points)
+        # expand regress ranges to align with points
+        expanded_regress_ranges = [
+            points[i].new_tensor(self.regress_ranges[i])[None].expand_as(
+                points[i]) for i in range(num_levels)
+        ]
+        # concat all levels points and regress ranges
+        concat_regress_ranges = torch.cat(expanded_regress_ranges, dim=0)
+        concat_points = torch.cat(points, dim=0)
+        # get labels and bbox_targets of each image
+        labels_list, bbox_targets_list, centerness_list = multi_apply(
+            self.fcos_target_single,
+            gt_bboxes_list,
+            gt_labels_list,
+            points=concat_points,
+            regress_ranges=concat_regress_ranges)
+
+        # split to per img, per level
+        num_points = [center.size(0) for center in points]
+        labels_list = [labels.split(num_points, 0) for labels in labels_list]
+        bbox_targets_list = [
+            bbox_targets.split(num_points, 0)
+            for bbox_targets in bbox_targets_list
+        ]
+        centerness_list = [
+            distances.split(num_points, 0)
+            for distances in centerness_list
+        ]
+
+        # concat per level image
+        concat_lvl_labels = []
+        concat_lvl_bbox_targets = []
+        concat_lvl_centerness_targets = []
+        for i in range(num_levels):
+            concat_lvl_labels.append(
+                torch.cat([labels[i] for labels in labels_list]))
+            concat_lvl_bbox_targets.append(
+                torch.cat(
+                    [bbox_targets[i] for bbox_targets in bbox_targets_list]))
+            concat_lvl_centerness_targets.append(
+                torch.cat([centerness[i] for centerness in centerness_list]))
+        return concat_lvl_labels, concat_lvl_bbox_targets, concat_lvl_centerness_targets
+
+    def fcos_target_single(self, gt_bboxes, gt_labels, points, regress_ranges):
+        num_points = points.size(0)
+        num_gts = gt_labels.size(0)
+        if num_gts == 0:
+            return gt_labels.new_zeros(num_points), \
+                   gt_bboxes.new_zeros((num_points, 4))
+
+        areas = gt_bboxes[:, 3] * gt_bboxes[:, 4]           # x, y, z, l, w, h, r
+        # TODO: figure out why these two are different
+        # areas = areas[None].expand(num_points, num_gts)
+        areas = areas[None].repeat(num_points, 1)
+        regress_ranges = regress_ranges[:, None, :].expand(
+            num_points, num_gts, 2)
+        cos_r = torch.cos(gt_bboxes[:, 6])
+        sin_r = torch.sin(gt_bboxes[:, 6])
+
+        dx, dy = points[:, 0], points[:, 1]
+        dx = dx[:, None].expand(num_points, num_gts) - gt_bboxes[:, 0]
+        dy = dy[:, None].expand(num_points, num_gts) - gt_bboxes[:, 1]
+        xs = dx * cos_r - dy * sin_r
+        ys = dx * sin_r + dy * cos_r
+
+        left = xs + gt_bboxes[:, 3] * 0.5
+        right = gt_bboxes[:, 3] * 0.5 - xs
+        top = ys + gt_bboxes[:, 4] * 0.5
+        bottom = gt_bboxes[:, 4] * 0.5 - ys
+        distance = torch.stack((left, top, right, bottom), -1)
+
+        # condition1: inside a gt bbox
+        inside_gt_bbox_mask = distance.min(-1)[0] > 0.
+
+        # condition2: limit the regression range for each location
+        max_regress_distance = distance.sum(dim=-1)
+        inside_regress_range = (
+            max_regress_distance >= regress_ranges[..., 0]) & (
+                max_regress_distance <= regress_ranges[..., 1])
+
+        # if there are still more than one objects for a location,
+        # we choose the one with minimal area
+        areas[inside_gt_bbox_mask == 0] = INF
+        areas[inside_regress_range == 0] = INF
+        min_area, min_area_inds = areas.min(dim=1)
+
+        labels = gt_labels[min_area_inds]
+        labels[min_area == INF] = 0
+        bbox_targets = gt_bboxes[min_area_inds, :]
+        bbox_targets[..., 0] -= points[:, 0]
+        bbox_targets[..., 1] -= points[:, 1]
+
+        bbox_targets = torch.cat((bbox_targets[:, 0:-1],
+                                  cos_r[min_area_inds, None],
+                                  sin_r[min_area_inds, None]),
+                                 dim=-1)
+
+        distance = distance[range(num_points), min_area_inds]
+        distance = self.centerness_target(distance)
+
+        return labels, bbox_targets, distance
+
+    def centerness_target(self, pos_bbox_targets):
+        # only calculate pos centerness targets, otherwise there may be nan
+        left_right = pos_bbox_targets[:, [0, 2]]
+        top_bottom = pos_bbox_targets[:, [1, 3]]
+        centerness_targets = (
+            left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0]) * (
+                top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0])
+        return torch.sqrt(centerness_targets)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'centernesses'))
     def get_bboxes(self,
@@ -290,135 +448,3 @@ class FCOSHead(nn.Module):
             cfg.max_per_img,
             score_factors=mlvl_centerness)
         return det_bboxes, det_labels
-
-    def get_points(self, featmap_sizes, dtype, device):
-        """Get points according to feature map sizes.
-
-        Args:
-            featmap_sizes (list[tuple]): Multi-level feature map sizes.
-            dtype (torch.dtype): Type of points.
-            device (torch.device): Device of points.
-
-        Returns:
-            tuple: points of each image.
-        """
-        mlvl_points = []
-        for i in range(len(featmap_sizes)):
-            mlvl_points.append(
-                self.get_points_single(featmap_sizes[i], self.strides[i],
-                                       dtype, device))
-        return mlvl_points
-
-    def get_points_single(self, featmap_size, stride, dtype, device):
-        h, w = featmap_size
-        x_range = torch.arange(
-            0, w * stride, stride, dtype=dtype, device=device)
-        y_range = torch.arange(
-            0, h * stride, stride, dtype=dtype, device=device)
-        y, x = torch.meshgrid(y_range, x_range)
-
-        x = (x + stride // 2) * self.voxel_cfg['voxel_size'][0]
-        y = (y + stride // 2) * self.voxel_cfg['voxel_size'][1]
-        points = torch.stack(
-            (x.reshape(-1), y.reshape(-1)), dim=-1)
-        return points
-
-    def fcos_target(self, points, gt_bboxes_list, gt_labels_list):
-        assert len(points) == len(self.regress_ranges)
-        num_levels = len(points)
-        # expand regress ranges to align with points
-        expanded_regress_ranges = [
-            points[i].new_tensor(self.regress_ranges[i])[None].expand_as(
-                points[i]) for i in range(num_levels)
-        ]
-        # concat all levels points and regress ranges
-        concat_regress_ranges = torch.cat(expanded_regress_ranges, dim=0)
-        concat_points = torch.cat(points, dim=0)
-        # get labels and bbox_targets of each image
-        labels_list, bbox_targets_list = multi_apply(
-            self.fcos_target_single,
-            gt_bboxes_list,
-            gt_labels_list,
-            points=concat_points,
-            regress_ranges=concat_regress_ranges)
-
-        # split to per img, per level
-        num_points = [center.size(0) for center in points]
-        labels_list = [labels.split(num_points, 0) for labels in labels_list]
-        bbox_targets_list = [
-            bbox_targets.split(num_points, 0)
-            for bbox_targets in bbox_targets_list
-        ]
-
-        # concat per level image
-        concat_lvl_labels = []
-        concat_lvl_bbox_targets = []
-        for i in range(num_levels):
-            concat_lvl_labels.append(
-                torch.cat([labels[i] for labels in labels_list]))
-            concat_lvl_bbox_targets.append(
-                torch.cat(
-                    [bbox_targets[i] for bbox_targets in bbox_targets_list]))
-        return concat_lvl_labels, concat_lvl_bbox_targets
-
-    def fcos_target_single(self, gt_bboxes, gt_labels, points, regress_ranges):
-        num_points = points.size(0)
-        num_gts = gt_labels.size(0)
-        if num_gts == 0:
-            return gt_labels.new_zeros(num_points), \
-                   gt_bboxes.new_zeros((num_points, 4))
-
-        areas = gt_bboxes[:, 3] * gt_bboxes[:, 4]           # x, y, z, l, w, h, r
-        # TODO: figure out why these two are different
-        # areas = areas[None].expand(num_points, num_gts)
-        areas = areas[None].repeat(num_points, 1)
-        regress_ranges = regress_ranges[:, None, :].expand(
-            num_points, num_gts, 2)
-        gt_bboxes = gt_bboxes[None].expand(num_points, num_gts, 7)
-        cos_r = torch.cos(gt_bboxes[..., 6])
-        sin_r = torch.sin(gt_bboxes[..., 6])
-
-        dx, dy = points[:, 0], points[:, 1]
-        dx = dx[:, None].expand(num_points, num_gts) - gt_bboxes[..., 0]
-        dy = dy[:, None].expand(num_points, num_gts) - gt_bboxes[..., 1]
-        xs = dx * cos_r + dy * sin_r
-        ys = -dx *sin_r + dy * cos_r
-
-        left = xs + gt_bboxes[..., 3] * 0.5
-        right = gt_bboxes[..., 3] * 0.5 - xs
-        top = ys + gt_bboxes[..., 4] * 0.5
-        bottom = gt_bboxes[..., 4] * 0.5 - ys
-        bbox_targets = torch.stack((left, top, right, bottom), -1)
-
-        # condition1: inside a gt bbox
-        inside_gt_bbox_mask = bbox_targets.min(-1)[0] > 0
-
-        # condition2: limit the regression range for each location
-        max_regress_distance = bbox_targets.max(-1)[0]
-        inside_regress_range = (
-            max_regress_distance >= regress_ranges[..., 0]) & (
-                max_regress_distance <= regress_ranges[..., 1])
-
-        # if there are still more than one objects for a location,
-        # we choose the one with minimal area
-        areas[inside_gt_bbox_mask == 0] = INF
-        areas[inside_regress_range == 0] = INF
-        min_area, min_area_inds = areas.min(dim=1)
-
-        labels = gt_labels[min_area_inds]
-        labels[min_area == INF] = 0
-        # bbox_targets = bbox_targets[range(num_points), min_area_inds]
-        bbox_targets = gt_bboxes[:, min_area_inds, [0, 1, 3, 4, 5, 6]]
-        bbox_targets[..., 0] = points[:, 0] - bbox_targets[..., 0]
-        bbox_targets[..., 1] = points[:, 1] - bbox_targets[..., 1]
-
-        return labels, bbox_targets
-
-    def centerness_target(self, pos_bbox_targets):
-        # only calculate pos centerness targets, otherwise there may be nan
-        left_right = pos_bbox_targets[:, [0, 2]]
-        top_bottom = pos_bbox_targets[:, [1, 3]]
-        centerness_targets = (
-            left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0]) * (
-                top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0])
-        return torch.sqrt(centerness_targets)

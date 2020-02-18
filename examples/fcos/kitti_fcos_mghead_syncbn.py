@@ -30,7 +30,7 @@ test_cfg = dict(
 
 # dataset settings
 dataset_type = "KittiDataset"
-data_root = "/media/jingsen/zhengjs/Datasets/kitti_object/"
+data_root = "/media/zhengjs/225A6D42D4FA828F/kitti_object/"
 
 db_sampler = dict(
     type="GT-AUG",
@@ -81,7 +81,7 @@ train_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=train_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
-    dict(type="SegmentAssignTarget", cfg=None),
+    # dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
     # dict(type='PointCloudCollect', keys=['points', 'voxels', 'annotations', 'calib']),
 ]
@@ -90,7 +90,7 @@ test_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=val_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
-    dict(type="SegmentAssignTarget", cfg=None),
+    # dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
 ]
 
@@ -99,8 +99,8 @@ val_anno = data_root + "/kitti_infos_val.pkl"
 test_anno = None
 
 data = dict(
-    samples_per_gpu=1,
-    workers_per_gpu=1,
+    samples_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         root_path=data_root,
@@ -142,11 +142,11 @@ model = dict(
         ds_factor=1,
         norm_cfg=norm_cfg,
         conv_cfg=dict(
-            type='ResNeXt',
+            type='ResNet',
             in_channels=64,
             depth=50,
-            groups=64,
-            base_width=4,
+            # groups=64,
+            # base_width=4,
             num_stages=4,
             out_indices=(0, 1, 2, 3),
             frozen_stages=1,
@@ -157,10 +157,11 @@ model = dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        start_level=1,
+        start_level=0,
+        end_level=3,
         add_extra_convs=True,
         extra_convs_on_inputs=False,  # use P5
-        num_outs=5,
+        num_outs=3,
         relu_before_extra_convs=True
     ),
     bbox_head=dict(
@@ -169,14 +170,16 @@ model = dict(
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
-        strides=[8, 16, 32, 64, 128],
+        strides=(4, 8, 16),
+        regress_ranges=((-1, 3.0), (3.0, 6.0), (6.0, 25.0)),
+        tasks=tasks,
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='IoULoss', loss_weight=1.0),
+        loss_bbox=dict(type='SmoothL1Loss', loss_weight=1.0),
         loss_centerness=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         voxel_cfg=voxel_generator,
@@ -214,7 +217,7 @@ lr_config = dict(
     pct_start=0.4,
 )
 
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=5)
 # yapf:disable
 log_config = dict(
     interval=20,
@@ -229,7 +232,7 @@ total_epochs = 100
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
-work_dir = "/media/jingsen/data/det3d_output/fcos"
+work_dir = "/media/zhengjs/225A6D42D4FA828F/kitti_object/det3d"
 load_from = None
 resume_from = None
 workflow = [("train", 5), ("val", 1)]

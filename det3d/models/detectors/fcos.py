@@ -47,10 +47,9 @@ class FCOS(SingleStageDetector):
 
         x = self.extract_feat(data)
         preds = self.bbox_head(x)
-        print("labels:\n", example["labels"].shape)
-        print("reg_targets:\n", example["reg_targets"].shape)
-        preds_gt = preds + (example["labels"],
-                            example["reg_targets"])
+        
+        preds_gt = preds + (example["gt_boxes"],
+                            example["gt_classes"])
 
         if return_loss:
             return self.bbox_head.loss(*preds_gt)

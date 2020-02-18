@@ -17,6 +17,8 @@ from det3d.core.anchor.target_assigner import TargetAssigner
 
 from ..registry import PIPELINES
 
+import cv2
+from det3d.torchie.visualization.simplevis import kitti_vis
 
 def _dict_select(dict_, inds):
     for k, v in dict_.items():
@@ -58,6 +60,11 @@ class Preprocess(object):
     def __call__(self, res, info):
 
         res["mode"] = self.mode
+        # bev_img = kitti_vis(res["lidar"]["points"],
+        #                     res["lidar"]["annotations"]["boxes"],
+        #                     res["lidar"]["annotations"]["names"])
+        # cv2.imshow("bev_img", bev_img)
+        # cv2.waitKey(10)
 
         if res["type"] in ["KittiDataset", "LyftDataset"]:
             points = res["lidar"]["points"]
@@ -245,9 +252,13 @@ class Preprocess(object):
         res["lidar"]["points"] = points
 
         if self.mode == "train":
-
             res["lidar"]["annotations"] = gt_dict
 
+        # bev_img2 = kitti_vis(res["lidar"]["points"],
+        #                      res["lidar"]["annotations"]["gt_boxes"],
+        #                      res["lidar"]["annotations"]["gt_names"])
+        # cv2.imshow("bev_img2", bev_img2)
+        # cv2.waitKey(10)
         return res, info
 
 
@@ -310,8 +321,8 @@ class SegmentAssignTarget(object):
             example = {}
             example.update(
                 {
-                    "labels": [gt_dict["gt_classes"]],
-                    "reg_targets": [gt_dict["gt_boxes"]],
+                    "labels": gt_dict["gt_classes"],
+                    "reg_targets": gt_dict["gt_boxes"],
                 }
             )
             res["lidar"]["targets"] = example

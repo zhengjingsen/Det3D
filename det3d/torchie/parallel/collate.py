@@ -144,6 +144,16 @@ def collate_kitti(batch_list, samples_per_gpu=1):
             for kk, vv in ret[key].items():
                 res.append(torch.stack(vv))
             ret[key] = res
+        elif key in ["annos"]:
+            for ele in elems:
+                for kk, vv in ele.items():
+                    if kk not in ret:
+                        ret[kk] = []
+                    if kk == 'gt_names':
+                        ret[kk].append(vv)
+                    else:
+                        ret[kk].append(torch.tensor(vv,
+                                                    device=torch.device("cuda")))
         else:
             ret[key] = np.stack(elems, axis=0)
 

@@ -20,7 +20,7 @@ class Reformat(object):
         points = res["lidar"]["points"]
         voxels = res["lidar"]["voxels"]
         anchors = {}
-        if "anchors" in res["lidar"]["targets"]:
+        if "targets" in res["lidar"] and "anchors" in res["lidar"]["targets"]:
             anchors = res["lidar"]["targets"]["anchors"]
 
         data_bundle = dict(
@@ -43,6 +43,8 @@ class Reformat(object):
 
         if res["mode"] != "test":
             annos = res["lidar"]["annotations"]
+            annos["gt_boxes"] = annos["gt_boxes"].astype(np.float32)
+            annos["gt_classes"] = annos["gt_classes"].astype(np.int64)
             data_bundle.update(annos=annos,)
 
         if res["mode"] == "train":
@@ -50,12 +52,16 @@ class Reformat(object):
             if ground_plane:
                 data_bundle["ground_plane"] = ground_plane
 
-            if "labels" in res["lidar"]["targets"]:
-                data_bundle.update(labels = res["lidar"]["targets"]["labels"])
-            if "reg_targets" in res["lidar"]["targets"]:
-                data_bundle.update(reg_targets = res["lidar"]["targets"]["reg_targets"])
-            if "reg_weights" in res["lidar"]["targets"]:
-                data_bundle.update(reg_weights = res["lidar"]["targets"]["reg_weights"])
+            if "targets" in res["lidar"]:
+                if "labels" in res["lidar"]["targets"]:
+                    data_bundle.update(
+                        labels = res["lidar"]["targets"]["labels"])
+                if "reg_targets" in res["lidar"]["targets"]:
+                    data_bundle.update(
+                        reg_targets = res["lidar"]["targets"]["reg_targets"])
+                if "reg_weights" in res["lidar"]["targets"]:
+                    data_bundle.update(
+                        reg_weights = res["lidar"]["targets"]["reg_weights"])
 
         return data_bundle, info
 

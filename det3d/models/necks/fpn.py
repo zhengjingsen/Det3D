@@ -51,7 +51,7 @@ class FPN(nn.Module):
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
 
-        for i in range(self.start_level, self.backbone_end_level):
+        for i in range(self.start_level, self.num_ins):
             l_conv = ConvModule(
                 in_channels[i],
                 out_channels,
@@ -115,16 +115,14 @@ class FPN(nn.Module):
         # build top-down path
         used_backbone_levels = len(laterals)
         for i in range(used_backbone_levels - 1, 0, -1):
-            tmp =  F.interpolate(
+            laterals[i - 1] += F.interpolate(
                 laterals[i], scale_factor=2, mode="nearest"
             )
-            print(tmp.shape)
-            print(laterals[i - 1].shape)
-            laterals[i - 1] += tmp
+
 
         # build outputs
         # part 1: from original levels
-        outs = [self.fpn_convs[i](laterals[i]) for i in range(used_backbone_levels)]
+        outs = [self.fpn_convs[i](laterals[i]) for i in range(used_backbone_levels) if i < self.num_outs]
         # part 2: add extra levels
         if self.num_outs > len(outs):
             # use max pool to get more levels on top of outputs
