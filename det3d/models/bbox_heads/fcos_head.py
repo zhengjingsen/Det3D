@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import defaultdict
 from det3d.torchie.cnn import normal_init
 
-from det3d.core import distance2bbox, force_fp32, multi_apply, multiclass_nms
+from det3d.core import preds2bbox, force_fp32, multi_apply, multiclass_rbbox_nms
 from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, Scale, bias_init_with_prob
@@ -429,7 +429,7 @@ class FCOSHead(nn.Module):
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
                 centerness = centerness[topk_inds]
-            bboxes = distance2bbox(points, bbox_pred, max_shape=img_shape)
+            bboxes = preds2bbox(points, bbox_pred, max_shape=img_shape)
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
             mlvl_centerness.append(centerness)
@@ -440,7 +440,7 @@ class FCOSHead(nn.Module):
         padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
         mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
         mlvl_centerness = torch.cat(mlvl_centerness)
-        det_bboxes, det_labels = multiclass_nms(
+        det_bboxes, det_labels = multiclass_rbbox_nms(
             mlvl_bboxes,
             mlvl_scores,
             cfg.score_thr,

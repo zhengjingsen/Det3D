@@ -221,6 +221,14 @@ if __name__ == "__main__":
                 ],
             ),
             make_cuda_ext(
+                name="nms_rotated_cuda",
+                module="det3d.ops.nms_rotated_torch",
+                sources=[
+                    "src/nms_rotated_cpu.cpp",
+                    "src/nms_rotated_cuda.cu",
+                ],
+            ),
+            make_cuda_ext(
                 name="syncbn_gpu",
                 module="det3d.ops.syncbn",
                 sources=["src/syncbn_cuda.cpp", "src/syncbn_cuda_kernel.cu"],

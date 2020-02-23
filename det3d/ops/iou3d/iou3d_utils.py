@@ -1,4 +1,4 @@
-import iou3d_cuda
+from . import IoU3D
 import torch
 
 # import det3d.utils.kitti_utils as kitti_utils

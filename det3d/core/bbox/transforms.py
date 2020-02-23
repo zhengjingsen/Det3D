@@ -217,3 +217,21 @@ def distance2bbox(points, distance, max_shape=None):
         x2 = x2.clamp(min=0, max=max_shape[1] - 1)
         y2 = y2.clamp(min=0, max=max_shape[0] - 1)
     return torch.stack([x1, y1, x2, y2], -1)
+
+def preds2bbox(points, bbox_preds, max_shape=None):
+    """Decode bbox prediction to bounding box.
+
+    Args:
+        Points (Tensor): Shape (n, 2), [x, y]
+        bbox_preds (Tensor): Shae(n, 8), [cx, cy, cz, l, w, h, sin, cos]
+        max_shape (tuple): Shape of the image.
+
+    Returns:
+        Tensor: Decoded bboxes.
+    """
+    theta = torch.atan2(bbox_preds[:, 6], bbox_preds[:, 7])
+    cx = points[:, 0] + bbox_preds[:, 0]
+    cy = points[:, 1] + bbox_preds[:, 1]
+
+    return torch.stack([cx, cy, bbox_preds[:, 3], bbox_preds[:, 4],
+                        theta, bbox_preds[:, 2], bbox_preds[:, 5]], -1)

@@ -16,16 +16,16 @@ class_names = list(itertools.chain(*[t["class_names"] for t in tasks]))
 train_cfg = dict()
 
 test_cfg = dict(
-    # nms=dict(
-    #     use_rotate_nms=True,
-    #     use_multi_class_nms=False,
-    #     nms_pre_max_size=1000,
-    #     nms_post_max_size=300,
-    #     nms_iou_threshold=0.5,
-    # ),
-    # score_threshold=0.05,
-    # post_center_limit_range=[0, -40.0, -5.0, 70.4, 40.0, 5.0],
-    # max_per_img=100,
+    nms=dict(
+        use_rotate_nms=True,
+        use_multi_class_nms=False,
+        nms_pre_max_size=1000,
+        nms_post_max_size=300,
+        nms_iou_threshold=0.5,
+    ),
+    score_threshold=0.05,
+    post_center_limit_range=[0, -40.0, -5.0, 70.4, 40.0, 5.0],
+    max_per_img=100,
 )
 
 # dataset settings
@@ -72,7 +72,7 @@ val_preprocessor = dict(
 voxel_generator = dict(
     range=[0, -38.4, -3, 67.2, 38.4, 1],
     voxel_size=[0.15, 0.15, 4.0],
-    max_points_in_voxel=100,
+    max_points_in_voxel=50,
     max_voxel_num=12000,
 )
 
@@ -144,7 +144,7 @@ model = dict(
         conv_cfg=dict(
             type='ResNet',
             in_channels=64,
-            depth=50,
+            depth=18,
             # groups=64,
             # base_width=4,
             num_stages=4,
@@ -155,7 +155,8 @@ model = dict(
     ),
     neck=dict(
         type='FPN',
-        in_channels=[256, 512, 1024, 2048],
+        # in_channels=[256, 512, 1024, 2048],
+        in_channels=[64, 128, 256, 512],
         out_channels=256,
         start_level=0,
         end_level=3,
@@ -228,7 +229,7 @@ log_config = dict(
 )
 # yapf:enable
 # runtime settings
-total_epochs = 100
+total_epochs = 50
 device_ids = range(8)
 dist_params = dict(backend="nccl", init_method="env://")
 log_level = "INFO"
