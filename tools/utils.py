@@ -16,7 +16,7 @@ from det3d.torchie.runner import (
     Trainer,
     obj_from_dict)
 from torch import nn
-from torch.nn.parallel import DistributedDataParallel
+from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from det3d.torchie.utils.env import get_root_logger
 
@@ -275,7 +275,9 @@ def train_detector(model, dataset, cfg, distributed=False, validate=False, logge
     dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
     data_loaders = [
         build_dataloader(
-            ds, cfg.data.samples_per_gpu, cfg.data.workers_per_gpu, dist=distributed
+            ds, cfg.data.samples_per_gpu,
+            cfg.data.workers_per_gpu,
+            cfg.gpus, dist=distributed
         )
         for ds in dataset
     ]
@@ -305,7 +307,7 @@ def train_detector(model, dataset, cfg, distributed=False, validate=False, logge
             find_unused_parameters=True,
         )
     else:
-        model = model.cuda()
+        model = DataParallel(model, device_ids=range(cfg.gpus)).cuda()
 
     logger.info(f"model structure: {model}")
 

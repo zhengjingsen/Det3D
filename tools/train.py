@@ -69,6 +69,7 @@ def main():
         cfg.work_dir = args.work_dir
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
+    cfg.gpus = args.gpus
 
     distributed = False
     if "WORLD_SIZE" in os.environ:
