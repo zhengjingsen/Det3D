@@ -72,7 +72,7 @@ val_preprocessor = dict(
 voxel_generator = dict(
     range=[0, -38.4, -3, 67.2, 38.4, 1],
     voxel_size=[0.15, 0.15, 4.0],
-    max_points_in_voxel=100,
+    max_points_in_voxel=50,
     max_voxel_num=12000,
 )
 
@@ -81,7 +81,6 @@ train_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=train_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
-    # dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
     # dict(type='PointCloudCollect', keys=['points', 'voxels', 'annotations', 'calib']),
 ]
@@ -90,7 +89,6 @@ test_pipeline = [
     dict(type="LoadPointCloudAnnotations", with_bbox=True),
     dict(type="Preprocess", cfg=val_preprocessor),
     dict(type="Voxelization", cfg=voxel_generator),
-    # dict(type="SegmentAssignTarget", cfg=None),
     dict(type="Reformat"),
 ]
 
@@ -99,7 +97,7 @@ val_anno = data_root + "/kitti_infos_val.pkl"
 test_anno = None
 
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=1,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
@@ -199,23 +197,22 @@ model = dict(
 
 # optimizer
 optimizer = dict(
-    type="adam",
-    amsgrad=0.0,
-    wd=0.01,
-    fixed_wd=True,
-    moving_average=False,
-)
+    type='SGD',
+    lr=0.01,
+    momentum=0.9,
+    weight_decay=0.0001,
+    paramwise_options=dict(bias_lr_mult=2., bias_decay_mult=0.))
+optimizer_config = dict(grad_clip=None)
 
 """training hooks """
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy in training hooks
 lr_config = dict(
-    type="one_cycle",
-    lr_max=3e-3,
-    moms=[0.95, 0.85],
-    div_factor=10.0,
-    pct_start=0.4,
-)
+    type='',
+    policy='step',
+    warmup='constant',
+    warmup_iters=500,
+    warmup_ratio=1.0 / 3,
+    step=[16, 22])
 
 checkpoint_config = dict(interval=5)
 # yapf:disable

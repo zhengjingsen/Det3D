@@ -41,7 +41,7 @@ def parse_args():
     )
     parser.add_argument("--local_rank", type=int, default=0)
     parser.add_argument(
-        "--autoscale-lr",
+        "--autoscale_lr",
         action="store_true",
         help="automatically scale lr with the number of gpus",
     )

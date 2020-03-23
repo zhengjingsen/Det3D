@@ -26,7 +26,7 @@ class SingleStageDetector(BaseDetector):
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
 
-        # self.init_weights(pretrained=pretrained)
+        self.init_weights(pretrained=pretrained)
 
     def init_weights(self, pretrained=None):
         super(SingleStageDetector, self).init_weights(pretrained)

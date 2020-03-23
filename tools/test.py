@@ -52,7 +52,6 @@ def compute_on_dataset(model, data_loader, device, timer=None, show=False):
     results_dict = {}
     prog_bar = torchie.ProgressBar(len(data_loader.dataset))
     for i, batch in enumerate(data_loader):
-        # example = example_convert_to_torch(batch, device=device)
         example = example_to_device(batch, device=device)
         with torch.no_grad():
             outputs = model(example, return_loss=False, rescale=not show)

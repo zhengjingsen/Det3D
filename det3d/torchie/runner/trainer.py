@@ -32,10 +32,18 @@ from .utils import (
 )
 
 def example_to_device(example, device, non_blocking=False) -> dict:
+    assert device is not None
+
     example_torch = {}
     float_names = ["voxels", "bev_map"]
     for k, v in example.items():
-        if k in ["anchors", "anchors_mask", "reg_targets", "reg_weights", "labels"]:
+        if k in [
+            "anchors",
+            "anchors_mask",
+            "reg_targets",
+            "reg_weights",
+            "labels",
+            "gt_classes", "gt_boxes"]:
             example_torch[k] = [res.to(device, non_blocking=non_blocking) for res in v]
         elif k in [
             "voxels",
@@ -139,6 +147,28 @@ class Prefetcher(object):
         input = self.next_input
         self.preload()
         return input
+
+def batch_processor(model, data, train_mode, **kwargs):
+
+    if "local_rank" in kwargs:
+        device = torch.device(kwargs["local_rank"])
+    else:
+        device = None
+
+    example = example_to_device(data, device, non_blocking=False)
+
+    del data
+
+    if train_mode:
+        losses = model(example, return_loss=True)
+        loss, log_vars = parse_second_losses(losses)
+
+        outputs = dict(
+            loss=loss, log_vars=log_vars, num_samples=len(example["anchors"][0])
+        )
+        return outputs
+    else:
+        return model(example, return_loss=False)
 
 
 class Trainer(object):
@@ -371,7 +401,6 @@ class Trainer(object):
         else:
             device = None
 
-        # data = example_convert_to_torch(data, device=device)
         example = example_to_device(
             data, torch.cuda.current_device(), non_blocking=False
         )

@@ -174,6 +174,10 @@ class PointPillarsScatter(nn.Module):
         if self.conv_cfg is not None:
             self.backbone = builder.build_backbone(self.conv_cfg)
 
+    def init_weights(self, pretrained=None):
+        if self.backbone is not None:
+            self.backbone.init_weights(pretrained)
+
     def forward(self, voxel_features, coords, batch_size, input_shape):
 
         self.nx = input_shape[0]

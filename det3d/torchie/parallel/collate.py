@@ -152,8 +152,7 @@ def collate_kitti(batch_list, samples_per_gpu=1):
                     if kk == 'gt_names':
                         ret[kk].append(vv)
                     else:
-                        ret[kk].append(torch.tensor(vv,
-                                                    device=torch.device("cuda")))
+                        ret[kk].append(torch.tensor(vv))
         else:
             ret[key] = np.stack(elems, axis=0)
 

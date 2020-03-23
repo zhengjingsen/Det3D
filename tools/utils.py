@@ -1,7 +1,6 @@
 from __future__ import division
 
 import re
-from collections import OrderedDict
 from functools import partial
 
 import apex
@@ -17,150 +16,8 @@ from det3d.torchie.runner import (
     obj_from_dict)
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
-
+from det3d.torchie.runner.trainer import batch_processor
 from det3d.torchie.utils.env import get_root_logger
-
-def example_convert_to_torch(example, dtype=torch.float32, device=None) -> dict:
-    assert device is not None
-
-    example_torch = {}
-    float_names = ["voxels", "bev_map"]
-    for k, v in example.items():
-        if k in ["anchors", "reg_targets", "reg_weights"]:
-            res = []
-            for kk, vv in v.items():
-                res.append(torch.tensor(vv).to(device, non_blocking=True))
-                # vv = np.array(vv)
-                # res.append(torch.tensor(vv, dtype=torch.float32,
-                #                         device=device))
-            example_torch[k] = res
-        elif k in float_names:
-            # slow when directly provide fp32 data with dtype=torch.half
-            example_torch[k] = v.to(device, non_blocking=True)
-            # example_torch[k] = torch.tensor(v,
-            #                                 dtype=torch.float32,
-            #                                 device=device)
-        elif k in ["coordinates", "num_points"]:
-            example_torch[k] = v.to(device, non_blocking=True)
-            # example_torch[k] = torch.tensor(v,
-            #                                 dtype=torch.int32,
-            #                                 device=device)
-        elif k == "labels":
-            res = []
-            for kk, vv in v.items():
-                # vv = np.array(vv)
-                res.append(torch.tensor(vv).to(device, non_blocking=True))
-            example_torch[k] = res
-        elif k == "points":
-            example_torch[k] = v.to(device, non_blocking=True)
-            # example_torch[k] = torch.tensor(v,
-            #                                 dtype=torch.float,
-            #                                 device=device)
-        elif k in ["anchors_mask"]:
-            res = []
-            for kk, vv in v.items():
-                res.append(torch.tensor(vv).to(device, non_blocking=True))
-            example_torch[k] = res
-        elif k == "calib":
-            calib = {}
-            for k1, v1 in v.items():
-                # calib[k1] = torch.tensor(v1, dtype=dtype, device=device)
-                calib[k1] = torch.tensor(v1).to(device, non_blocking=True)
-            example_torch[k] = calib
-        elif k == "num_voxels":
-            example_torch[k] = v.to(device, non_blocking=True)
-            # example_torch[k] = torch.tensor(v,
-            #                                 dtype=torch.int64,
-            #                                 device=device)
-        else:
-            example_torch[k] = v
-
-    return example_torch
-
-
-def example_to_device(example, device=None, non_blocking=False) -> dict:
-    assert device is not None
-
-    example_torch = {}
-    float_names = ["voxels", "bev_map"]
-    for k, v in example.items():
-        if k in ["anchors", "anchors_mask", "reg_targets", "reg_weights", "labels"]:
-            example_torch[k] = [res.to(device, non_blocking=non_blocking) for res in v]
-        elif k in [
-            "voxels",
-            "bev_map",
-            "coordinates",
-            "num_points",
-            "points",
-            "num_voxels",
-        ]:
-            example_torch[k] = v.to(device, non_blocking=non_blocking)
-        elif k == "calib":
-            calib = {}
-            for k1, v1 in v.items():
-                # calib[k1] = torch.tensor(v1, dtype=dtype, device=device)
-                calib[k1] = torch.tensor(v1).to(device, non_blocking=non_blocking)
-            example_torch[k] = calib
-        else:
-            example_torch[k] = v
-
-    return example_torch
-
-
-def parse_losses(losses):
-    log_vars = OrderedDict()
-    for loss_name, loss_value in losses.items():
-        if isinstance(loss_value, torch.Tensor):
-            log_vars[loss_name] = loss_value.mean()
-        elif isinstance(loss_value, list):
-            log_vars[loss_name] = sum(_loss.mean() for _loss in loss_value)
-        else:
-            raise TypeError("{} is not a tensor or list of tensors".format(loss_name))
-
-    loss = sum(_value for _key, _value in log_vars.items() if "loss" in _key)
-
-    log_vars["loss"] = loss
-    for name in log_vars:
-        log_vars[name] = log_vars[name].item()
-
-    return loss, log_vars
-
-
-def parse_second_losses(losses):
-
-    log_vars = OrderedDict()
-    loss = sum(losses["loss"])
-    for loss_name, loss_value in losses.items():
-        if loss_name == "loc_loss_elem":
-            log_vars[loss_name] = [[i.item() for i in j] for j in loss_value]
-        else:
-            log_vars[loss_name] = [i.item() for i in loss_value]
-
-    return loss, log_vars
-
-
-def batch_processor(model, data, train_mode, **kwargs):
-
-    if "local_rank" in kwargs:
-        device = torch.device(kwargs["local_rank"])
-    else:
-        device = None
-
-    # data = example_convert_to_torch(data, device=device)
-    example = example_to_device(data, device, non_blocking=False)
-
-    del data
-
-    if train_mode:
-        losses = model(example, return_loss=True)
-        loss, log_vars = parse_second_losses(losses)
-
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=len(example["anchors"][0])
-        )
-        return outputs
-    else:
-        return model(example, return_loss=False)
 
 
 def flatten_model(m):
@@ -275,7 +132,10 @@ def train_detector(model, dataset, cfg, distributed=False, validate=False, logge
     dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
     data_loaders = [
         build_dataloader(
-            ds, cfg.data.samples_per_gpu, cfg.data.workers_per_gpu, dist=distributed
+            ds,
+            cfg.data.samples_per_gpu,
+            cfg.data.workers_per_gpu,
+            dist=distributed
         )
         for ds in dataset
     ]

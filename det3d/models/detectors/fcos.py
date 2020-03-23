@@ -47,11 +47,26 @@ class FCOS(SingleStageDetector):
 
         x = self.extract_feat(data)
         preds = self.bbox_head(x)
-        
-        preds_gt = preds + (example["gt_boxes"],
-                            example["gt_classes"])
+        for pred in preds:
+            for p in pred:
+                condi = p.max() < 1e8 and p.min() > -1e8
+                print("max: {}, min: {}, condition: {}".format(p.max(), p.min(), condi))
+                # assert p.max() < 1e8 and p.min() > -1e8
+                # condi_1 = p.max() < 1e8
+                # condi_2 = p.min() > -1e8
+                # condi_3 = condi_1 and condi_2
+
+                if not condi:
+                    tmp = p.detach().cpu().numpy()
+                    p_max = 1e8
+                    p_min = -1e8
+                    p_max = p.max() < p_max
+                    p_min = p.min() > p_min
+                    print(tmp.shape)
 
         if return_loss:
+            preds_gt = preds + (example["gt_boxes"],
+                                example["gt_classes"])
             return self.bbox_head.loss(*preds_gt)
         else:
             return self.bbox_head.predict(example, preds, self.test_cfg)
